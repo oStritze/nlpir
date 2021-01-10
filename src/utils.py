@@ -1,9 +1,6 @@
 import nltk
-from nltk.corpus import stopwords
 from nltk.tokenize import word_tokenize
 
-import string
-import glob
 import os
 import math
 from typing import List
@@ -14,10 +11,29 @@ def setup_nltk():
 	nltk.download('punkt')
 
 
-def tfidf_per_doc(president_dir: str):
-	data_path = glob.glob("../data/{}/".format(president_dir))
-	tokens_docs = _read_all_text_files(data_path[0])
-	word_count_docs, dfs = _count_words_per_doc(tokens_docs)
+def read_corpus(filename):
+	with open(filename, "r", encoding="utf8") as f:
+		return word_tokenize(f.read())
+
+
+def read_all_text_files(president_dir: str):
+	"""
+	:return: a list of lists: for each text document it contains the list of tokens of the text document
+	"""
+	data_path = "../data/{}/".format(president_dir)
+	tokens_docs = []
+	for filename in os.listdir(data_path):
+		input_file = data_path + filename
+		tokens_docs.append(read_corpus(input_file))
+	return tokens_docs
+
+
+def tfidf_per_doc(tokens_docs: List[List]):
+	"""
+	:param tokens_docs: list of tokens per document
+	:return: List of dicts, where vocab is key and tfidf-score is value
+	"""
+	word_count_docs, dfs = count_words_per_doc(tokens_docs)
 
 	n_docs = len(word_count_docs)
 	tfidf_docs = []
@@ -32,29 +48,7 @@ def tfidf_per_doc(president_dir: str):
 	return tfidf_docs
 
 
-def _read_all_text_files(data_path: str):
-	"""
-	:return: a list of lists: for each text document it contains the list of tokens of the text document
-	"""
-	file_tokens = []
-	for filename in os.listdir(data_path):
-		input_file = glob.glob(data_path + filename)
-		text = open(input_file[0], "r", encoding="utf8").read()
-		file_tokens.append(_preprocess_text(text))
-	return file_tokens
-
-
-def _preprocess_text(text: str):
-	"""
-	:return: a list of tokens of the text, stopwords and punctuation removed, lowercased
-	"""
-	stop_words = set(stopwords.words('english'))
-	punctuations = list(string.punctuation)
-	return [token.lower() for token in word_tokenize(text) if token not in stop_words and token not in punctuations]
-
-
-#
-def _count_words_per_doc(tokens_docs: List[List]):
+def count_words_per_doc(tokens_docs: List[List]):
 	"""
 	:param tokens_docs: list of tokens per document
 	:return: list of dictionaries with counts of each word of the vocabulary per document
@@ -72,9 +66,17 @@ def _count_words_per_doc(tokens_docs: List[List]):
 	return word_counts_docs, dfs
 
 
-def _create_tf_dict(number_of_words: dict):
+def create_tf_dict(number_of_words: dict):
 	"""
 	Create a dictionary with the normalized tf scores per token, the tokens of the vocabulary are the keys, the tf scores are the values
 	"""
 	doc_size = sum([occ for _, occ in number_of_words.items()])
 	return {token: occ / doc_size for token, occ in number_of_words.items()}
+
+
+def top_n_per_document(tfidf_doc: dict, n=100):
+	"""
+	:return: returns a list of top n words sorted in descending order after the tfidf score of the document
+	"""
+	sorted_tuples = sorted(tfidf_doc.items(), key=lambda tup: tup[1], reverse=True)
+	return [token for token, _ in sorted_tuples[:n]]
