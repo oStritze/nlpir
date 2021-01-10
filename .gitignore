@@ -1,3 +1,6 @@
+*/shakespeare_*.txt
+src/__pycache__/
 src/.ipynb_checkpoints/
 Onepager*.pdf
 .idea
+.DS_Store
