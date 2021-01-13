@@ -80,3 +80,20 @@ def top_n_per_document(tfidf_doc: dict, n=100):
 	"""
 	sorted_tuples = sorted(tfidf_doc.items(), key=lambda tup: tup[1], reverse=True)
 	return [token for token, _ in sorted_tuples[:n]]
+
+
+def read_speeches_as_text(file_path="bush"):
+	"""
+	:param file_path: path to speech files
+	:return: List of speeches as strings
+	"""
+	data_path = "../data/{}/".format(file_path)
+	documents = []
+	for filename in os.listdir(data_path):
+		with open(data_path+filename, "r") as f:
+			documents.append(f.read())
+	return documents
+
+
+def euclidean_distance(x, y):
+	return math.sqrt(sum(pow(a - b, 2) for a, b in zip(x, y)))
