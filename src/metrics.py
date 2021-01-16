@@ -4,6 +4,7 @@ import statistics
 import re
 from collections import Counter
 from heapq import nsmallest
+from rouge_score import rouge_scorer
 import math
 
 
@@ -202,3 +203,54 @@ def get_top_n_rank_distance(orig_speeches_loc="bush", gen_speeches_loc="bush_gen
     else:
         ranklist_gen = get_tfidf_ranklist(gen_tfidf_docs[gen_speech_id_to_compare], reverse=True)
         return calc_top_n_distance(ranklist, ranklist_gen, n)
+
+
+def calc_rouge_score(orig_text:str, gen_text:str):
+    """
+        :param orig_text: original speech as a string
+        :param gen_text: generated speech as a string
+        :return: rouge score between the two speeches (f1 measure)
+        """
+    scorer = rouge_scorer.RougeScorer(['rouge1'], use_stemmer=True)
+    scores = scorer.score(orig_text, gen_text)
+    return scores["rouge1"][2]
+
+
+def get_rouge_score(orig_speeches_loc="bush", gen_speeches_loc="bush_generated", gen_speech_id_to_compare=None,
+                    print_results=True):
+    """
+        :param orig_speeches_loc: location of the txt files of the original speeches to analyse
+        :param gen_speeches_loc: location of the txt files of the generated speeches to analyse
+        :param gen_speech_id_to_compare: int if comparison to one generated speech, None if comparison over all
+        :param print_results: Whether to print the calculated results in addition to returning them
+        :return: mean rouge score, std of rouge scores, list of rouge scores
+    """
+
+    orig_speeches = utils.read_speeches_as_text(orig_speeches_loc)
+    gen_speeches = utils.read_speeches_as_text(gen_speeches_loc)
+    scores = []
+
+    if gen_speech_id_to_compare is not None:
+        for o in orig_speeches:
+            scores.append(calc_rouge_score(o, gen_speeches[gen_speech_id_to_compare]))
+        mean_rouge = sum(scores) / len(scores)
+        std_rouge = statistics.stdev(scores)
+        if print_results:
+            print("mean rouge score for generated speech " + str(gen_speech_id_to_compare) + ":", mean_rouge)
+            print("standard deviation of rouge score for generated speech " + str(gen_speech_id_to_compare) + ":",
+                  std_rouge)
+        return mean_rouge, std_rouge, scores
+
+    else:
+        for g in gen_speeches:
+            tmp_scores = []
+            for o in orig_speeches:
+                tmp_scores.append(calc_rouge_score(o, g))
+            mean_tmp_rouge = sum(tmp_scores) / len(tmp_scores)
+            scores.append(mean_tmp_rouge)
+        mean_rouge = sum(scores) / len(scores)
+        std_rouge = statistics.stdev(scores)
+        if print_results:
+            print("mean rouge score for all generated speeches:", mean_rouge)
+            print("standard deviation of rouge score for all generated speeches:", std_rouge)
+        return mean_rouge, std_rouge, scores
