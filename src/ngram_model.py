@@ -6,15 +6,27 @@ import random
 from typing import List, Dict, Tuple
 
 
-def create_ngram(president_dir: str, n=3):
-	tokens_docs = utils.read_all_text_files(president_dir)
+def create_ngram(president_dir: str, n=3, use_lower=False, pos_tagging=False):
+	tokens_docs = utils.read_all_text_files(president_dir, use_lower, pos_tagging)
+	if pos_tagging:
+		token_model = NgramModel([[token for token, pos_tag in tokens] for tokens in tokens_docs], n)
+		pos_tag_model = NgramModel([[pos_tag for token, pos_tag in tokens] for tokens in tokens_docs], n)
+		tokens_per_pos = defaultdict(set)
+		for tokens in tokens_docs:
+			for token, pos_tag in tokens:
+				tokens_per_pos[pos_tag].add(token)
+		tokens_per_pos["START"].add("START")
+		tokens_per_pos["STOP"].add("STOP")
+		tokens_per_pos["UNK"].add("UNK")
+		return token_model, pos_tag_model, tokens_per_pos
+
 	return NgramModel(tokens_docs, n)
 
 
 class NgramModel:
 	def __init__(self, tokens_docs, n=3):
 		self.N = n
-		self.VOCAB = {"START", "END", "UNK"}
+		self.VOCAB = {"START", "STOP", "UNK"}
 		self.total_word_count = 0
 		self.ngram_counts = self.count_ngrams(tokens_docs)
 
@@ -65,11 +77,11 @@ class NgramModel:
 		"""
 		Returns the smoothed ngram probability (using linear interpolation).
 		"""
-		lam = 1 / sum(range(self.N + 1))
+		lam = 1 / self.N
 		smoothed_prob = 0
 		for i in reversed(range(self.N)):
 			prev_gram = ngram[i:]
-			smoothed_prob += (i + 1) * lam * self.raw_ngram_probability(prev_gram)
+			smoothed_prob += lam * self.raw_ngram_probability(prev_gram)
 		return smoothed_prob
 
 	def raw_ngram_probability(self, ngram: Tuple[str]):
@@ -96,19 +108,37 @@ class NgramModel:
 
 		return tuple(filtered)
 
-	def generate_speech(self, random_state: int, max_length=None):
-		random.seed(random_state)
 
-		prev_ngram = tuple(["START"] * self.N)
-		speech = [prev_ngram[-1]]
-		while speech[-1] != "END" and (max_length is None or len(speech) < max_length):
-			ngrams = []
-			probs = []
-			for token in self.VOCAB:
-				ngram = tuple(list(prev_ngram[1:]) + [token])
-				ngrams.append(ngram)
-				probs.append(self.smoothed_ngram_probability(ngram))
-			next_ngram = random.choices(ngrams, weights=probs, k=1)[0]
-			speech += [next_ngram[-1]]
-			prev_ngram = next_ngram
-		return " ".join(speech)
+def generate_speech(random_state: int, token_model, pos_tag_model=None, tokens_per_pos=None, max_length=None):
+	random.seed(random_state)
+
+	prev_token_ngram = tuple(["START"] * token_model.N)
+	if pos_tag_model is not None:
+		prev_pos_ngram = tuple(["START"] * pos_tag_model.N)
+	speech = [prev_token_ngram[-1]]
+	while speech[-1] != "STOP" and (max_length is None or len(speech) < max_length):
+		if pos_tag_model is not None:
+			next_pos_ngram = predict_next_ngram(pos_tag_model, prev_pos_ngram)
+			allowed_tokens = tokens_per_pos[next_pos_ngram[-1]]
+			next_token_ngram = predict_next_ngram(token_model, prev_token_ngram, vocab=allowed_tokens)
+
+			prev_pos_ngram = next_pos_ngram
+		else:
+			next_token_ngram = predict_next_ngram(token_model, prev_token_ngram)
+
+		speech += [next_token_ngram[-1]]
+		prev_token_ngram = next_token_ngram
+	return " ".join(speech)
+
+
+def predict_next_ngram(model, prev_token_ngram, vocab=None):
+	ngrams = []
+	probs = []
+	if vocab is None:
+		vocab = model.VOCAB
+	for token in vocab:
+		if token not in ["START", "UNK"]:
+			ngram = tuple(list(prev_token_ngram[1:]) + [token])
+			ngrams.append(ngram)
+			probs.append(model.smoothed_ngram_probability(ngram))
+	return random.choices(ngrams, weights=probs, k=1)[0]
