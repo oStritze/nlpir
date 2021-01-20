@@ -12,14 +12,13 @@ def setup_nltk():
 	nltk.download('averaged_perceptron_tagger')
 
 
-def read_corpus(filename, use_lower=False, pos_tagging=False):
-	with open(filename, "r", encoding="utf8") as f:
-		tokens = word_tokenize(f.read())
-		if use_lower:
-			tokens = [token.lower() for token in tokens]
-		if pos_tagging:
-			return nltk.pos_tag(tokens)
-		return tokens
+def tokenize_corpus(text, use_lower=False, pos_tagging=False):
+	tokens = word_tokenize(text)
+	if use_lower:
+		tokens = [token.lower() for token in tokens]
+	if pos_tagging:
+		return nltk.pos_tag(tokens)
+	return tokens
 
 
 def read_all_text_files(president_dir: str, use_lower=False, pos_tagging=False):
@@ -29,8 +28,10 @@ def read_all_text_files(president_dir: str, use_lower=False, pos_tagging=False):
 	data_path = "../data/{}/".format(president_dir)
 	tokens_docs = []
 	for filename in os.listdir(data_path):
-		input_file = data_path + filename
-		tokens_docs.append(read_corpus(input_file, use_lower, pos_tagging))
+		if filename.endswith(".txt"):
+			input_file = data_path + filename
+			with open(input_file, "r", encoding="utf8") as f:
+				tokens_docs.append(tokenize_corpus(f.read(), use_lower, pos_tagging))
 	return tokens_docs
 
 
@@ -96,7 +97,7 @@ def read_speeches_as_text(file_path="bush"):
 	data_path = "../data/{}/".format(file_path)
 	documents = []
 	for filename in os.listdir(data_path):
-		with open(data_path+filename, "r") as f:
+		with open(data_path + filename, "r") as f:
 			documents.append(f.read())
 	return documents
 

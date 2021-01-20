@@ -3,14 +3,15 @@
 import utils
 from collections import defaultdict
 import random
+import numpy as np
 from typing import List, Dict, Tuple
 
 
-def create_ngram(president_dir: str, n=3, use_lower=False, pos_tagging=False):
+def create_ngram(president_dir: str, n=3, pos_n=3, use_lower=False, pos_tagging=False):
 	tokens_docs = utils.read_all_text_files(president_dir, use_lower, pos_tagging)
 	if pos_tagging:
 		token_model = NgramModel([[token for token, pos_tag in tokens] for tokens in tokens_docs], n)
-		pos_tag_model = NgramModel([[pos_tag for token, pos_tag in tokens] for tokens in tokens_docs], n)
+		pos_tag_model = NgramModel([[pos_tag for token, pos_tag in tokens] for tokens in tokens_docs], pos_n)
 		tokens_per_pos = defaultdict(set)
 		for tokens in tokens_docs:
 			for token, pos_tag in tokens:
@@ -109,18 +110,20 @@ class NgramModel:
 		return tuple(filtered)
 
 
-def generate_speech(random_state: int, token_model, pos_tag_model=None, tokens_per_pos=None, max_length=None):
+def generate_speech(random_state: int, token_model, pos_tag_model=None, tokens_per_pos=None, max_length=None, top_token=10, top_pos=10):
 	random.seed(random_state)
+	pos_tagging = bool(pos_tag_model is not None)
 
 	prev_token_ngram = tuple(["START"] * token_model.N)
-	if pos_tag_model is not None:
+	if pos_tagging:
 		prev_pos_ngram = tuple(["START"] * pos_tag_model.N)
 	speech = [prev_token_ngram[-1]]
+
 	while speech[-1] != "STOP" and (max_length is None or len(speech) < max_length):
-		if pos_tag_model is not None:
-			next_pos_ngram = predict_next_ngram(pos_tag_model, prev_pos_ngram)
+		if pos_tagging:
+			next_pos_ngram = predict_next_ngram(pos_tag_model, prev_pos_ngram, top_probs=top_pos)
 			allowed_tokens = tokens_per_pos[next_pos_ngram[-1]]
-			next_token_ngram = predict_next_ngram(token_model, prev_token_ngram, vocab=allowed_tokens)
+			next_token_ngram = predict_next_ngram(token_model, prev_token_ngram, vocab=allowed_tokens, top_probs=top_token)
 
 			prev_pos_ngram = next_pos_ngram
 		else:
@@ -131,7 +134,7 @@ def generate_speech(random_state: int, token_model, pos_tag_model=None, tokens_p
 	return " ".join(speech)
 
 
-def predict_next_ngram(model, prev_token_ngram, vocab=None):
+def predict_next_ngram(model, prev_token_ngram, vocab=None, top_probs=10):
 	ngrams = []
 	probs = []
 	if vocab is None:
@@ -141,4 +144,9 @@ def predict_next_ngram(model, prev_token_ngram, vocab=None):
 			ngram = tuple(list(prev_token_ngram[1:]) + [token])
 			ngrams.append(ngram)
 			probs.append(model.smoothed_ngram_probability(ngram))
+
+	top_i = np.argsort(probs)[::-1][:top_probs]
+	probs = np.array(probs)[top_i]
+	probs /= np.max(probs)
+	ngrams = np.array(ngrams)[top_i]
 	return random.choices(ngrams, weights=probs, k=1)[0]
