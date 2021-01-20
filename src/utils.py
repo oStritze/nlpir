@@ -9,14 +9,20 @@ from typing import List
 def setup_nltk():
 	nltk.download('stopwords')
 	nltk.download('punkt')
+	nltk.download('averaged_perceptron_tagger')
 
 
-def read_corpus(filename):
+def read_corpus(filename, use_lower=False, pos_tagging=False):
 	with open(filename, "r", encoding="utf8") as f:
-		return word_tokenize(f.read())
+		tokens = word_tokenize(f.read())
+		if use_lower:
+			tokens = [token.lower() for token in tokens]
+		if pos_tagging:
+			return nltk.pos_tag(tokens)
+		return tokens
 
 
-def read_all_text_files(president_dir: str):
+def read_all_text_files(president_dir: str, use_lower=False, pos_tagging=False):
 	"""
 	:return: a list of lists: for each text document it contains the list of tokens of the text document
 	"""
@@ -24,7 +30,7 @@ def read_all_text_files(president_dir: str):
 	tokens_docs = []
 	for filename in os.listdir(data_path):
 		input_file = data_path + filename
-		tokens_docs.append(read_corpus(input_file))
+		tokens_docs.append(read_corpus(input_file, use_lower, pos_tagging))
 	return tokens_docs
 
 
