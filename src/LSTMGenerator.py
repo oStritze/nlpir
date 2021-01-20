@@ -5,7 +5,7 @@ from lstm_words import Encoder, Decoder
 
 class LSTMGenerator():
         
-    def __init__(self, president):
+    def __init__(self, president, force_cpu=False):
         # le president
         self.president = president
         self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
@@ -23,9 +23,14 @@ class LSTMGenerator():
         
         # load models
         self.encoder = Encoder(len(self.xvoc), self.hidden_size, self.embedding_size, self.num_layers).to(self.device)
-        self.encoder.load_state_dict(torch.load('../data/lstm/models/{}_enc.pt'.format(president))) #, map_location=torch.device('cpu')))
         self.decoder = Decoder(len(self.xvoc), self.hidden_size, self.embedding_size, self.num_layers).to(self.device)
-        self.decoder.load_state_dict(torch.load('../data/lstm/models/{}_dec.pt'.format(president))) #, map_location=torch.device('cpu')))
+        if force_cpu: 
+            self.encoder.load_state_dict(torch.load('../data/lstm/models/{}_enc.pt'.format(president), map_location=torch.device('cpu'))) #, map_location=torch.device('cpu')))
+            self.decoder.load_state_dict(torch.load('../data/lstm/models/{}_dec.pt'.format(president), map_location=torch.device('cpu'))) #, map_location=torch.device('cpu')))
+        else:
+            self.encoder.load_state_dict(torch.load('../data/lstm/models/{}_enc.pt'.format(president))) #, map_location=torch.device('cpu')))
+            self.decoder.load_state_dict(torch.load('../data/lstm/models/{}_dec.pt'.format(president)))
+
     
     def voc_index(self, words):
         return torch.tensor([self.xvoc.stoi[x] for x in words]).to(self.device)
