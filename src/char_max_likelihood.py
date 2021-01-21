@@ -74,8 +74,8 @@ def generate_text(lm, order, nletters=1000, early_stopping=False):
         c = generate_letter(lm, history, order)
         if c == None or c == "~":
             if early_stopping:
-                print(c)
-                print(history, lm[history[-order:]]) 
+                #print(c)
+                #print(history, lm[history[-order:]]) 
                 break
             if not early_stopping:
                 history = history + "~" * order
