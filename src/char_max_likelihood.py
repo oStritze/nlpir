@@ -62,7 +62,8 @@ def generate_letter(lm, history, order):
     for c,v in dist:
         x = x - v
         # do not predict a "~" since this would mix different starts into one speech - this could be used for early-ending of the speech though
-        if x <= 0 and c != "~": 
+        #if x <= 0 and c != "~": 
+        if x <= 0:
             return c
 
 		
@@ -71,8 +72,10 @@ def generate_text(lm, order, nletters=1000, early_stopping=False):
     out = []
     for i in range(nletters):
         c = generate_letter(lm, history, order)
-        if c == None:
+        if c == None or c == "~":
             if early_stopping:
+                print(c)
+                print(history, lm[history[-order:]]) 
                 break
             if not early_stopping:
                 history = history + "~" * order
