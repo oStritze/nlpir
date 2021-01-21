@@ -24,7 +24,7 @@ def concat_speeches(president:str, order=4):
             pad = "~" * order
             all_speeches += pad + s + "\n" 
             #all_speeches += s
-    return all_speeches
+    return all_speeches + "~" * order # if the last speeches end is called we get an error since there is no follow up on this - therefore, start a new one...
     
 def train_char_lm_on_single_speech(fname, order=4):
     data = open(fname, "r").read()
@@ -64,12 +64,20 @@ def generate_letter(lm, history, order):
         # do not predict a "~" since this would mix different starts into one speech - this could be used for early-ending of the speech though
         if x <= 0 and c != "~": 
             return c
+
 		
-def generate_text(lm, order, nletters=1000):
+def generate_text(lm, order, nletters=1000, early_stopping=False):
     history = "~" * order
     out = []
     for i in range(nletters):
         c = generate_letter(lm, history, order)
+        if c == None:
+            if early_stopping:
+                break
+            if not early_stopping:
+                history = history + "~" * order
+                c = generate_letter(lm, history, order)
+            #print(history, lm[history[-order:]]) 
         history = history[-order:] + c
         out.append(c)
     outstring = "".join(out)
