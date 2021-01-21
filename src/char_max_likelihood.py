@@ -12,6 +12,8 @@ import utils
 from collections import *
 import random
 
+# Highly inspired by https://nbviewer.jupyter.org/gist/yoavg/d76121dfde2618422139
+
 def concat_speeches(president:str, order=4):
     fpath = "../data/" + president +"/"
     all_speeches = ""
