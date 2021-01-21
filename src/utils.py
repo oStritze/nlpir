@@ -97,7 +97,7 @@ def read_speeches_as_text(file_path="bush"):
 	data_path = "../data/{}/".format(file_path)
 	documents = []
 	for filename in os.listdir(data_path):
-		with open(data_path + filename, "r") as f:
+		with open(data_path + filename, "r", encoding="utf8") as f:
 			documents.append(f.read())
 	return documents
 
